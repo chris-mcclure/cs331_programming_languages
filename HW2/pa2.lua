@@ -42,23 +42,40 @@ function pa2.concatMax(m, n)
 end
 
 
--- collatz takes a number k. If k is equal to 1, then the 
--- function returns and we're done. If k is odd, then 
--- collatz is called with 3(k)+1. Otherwise, k is even 
--- and collatz is called with k/2. 
+-- collatz takes a number k and returns an iterator.
+--  If k is equal to 1, then the function returns 
+--and we're done. If k is odd, then collatz is called 
+--with 3(k)+1. Otherwise, k is even and collatz is called with k/2. 
 function pa2.collatz(k)
-	if k == 1 then
-		-- io.write(k.. " ")
-		-- print("DONE")
-		return 1
-	elseif (k%2 == 0) then
-		-- io.write(k.. " ")
-		collatz(k/2)
-	else
-		-- io.write(k.. " ")
-		collatz((k*3)+1)
+	local flag = false -- flag is set to true once a 1 has been seen
+	function iter(dummy)
+		local num = k
+		if k == 1 then 
+			if flag == false then
+				flag = true -- 1 has been seen 
+				return num  -- next time we see a 1, we return nil
+			else 
+				return nil
+			end
+		elseif k%2 == 0 then 
+			num = k
+			k = k/2
+		else
+			num = k
+			k = 3*k + 1
+		end
+		return num
 	end
+	return iter, nil, nil
 end
+
+function pa2.backsubs(s)
+	coroutine.yield(s)
+end
+
+c = coroutine.create(pa2.backsubs)
+ok, value = coroutine.resume(c, s)
+
 
 return pa2
 -- -- ******* TESTING FUNCTIONS ******
