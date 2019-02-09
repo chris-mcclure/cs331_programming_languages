@@ -1,8 +1,8 @@
 #!/usr/bin/env lua
 -- Chris McClure 
 -- HW2 lua
--- Last revision date: 2/7/19
--- Purpose: functions being tested for hw2
+-- Last revision date: 2/9/19
+-- Purpose: functions and coroutine being tested for hw2
 
 local pa2 = {}
 
@@ -14,9 +14,9 @@ local pa2 = {}
 -- Ex. tbl = {[abc]=4, [true]=-14, [5] = 7} returns
 -- tbl{ ["abc"]=14, [true]=-4, [5]=17 } 
 function pa2.mapTable(f, t)
-	for k, v in pairs(t) do
-		t[k] = f(v)
-	end
+	for k, v in pairs(t) do -- for every key, value in the table,
+		t[k] = f(v)			-- set the table index equal to the value 
+	end				 		-- returned by addTen.
 	return t
 end
 
@@ -50,7 +50,7 @@ end
 --with 3(k)+1. Otherwise, k is even and collatz is called with k/2. 
 function pa2.collatz(k)
 	local flag = false -- flag is set to true once a 1 has been seen
-	function iter(dummy)
+	function iter(dummy) -- dummy variable to make function happy
 		local num = k
 		if k == 1 then 
 			if flag == false then
@@ -68,7 +68,7 @@ function pa2.collatz(k)
 		end
 		return num
 	end
-	return iter, nil, nil
+	return iter, nil, nil -- return the iterator to the caller
 end
 
 
