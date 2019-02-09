@@ -70,15 +70,18 @@ function pa2.collatz(k)
 end
 
 function pa2.backSubs(s)
-
-	local n = #s
-	local str_reverse = string.reverse(s)
-	local num_substr = (n*(n+1)/2)+1
 	local count = 0
-	while count <= num_substr -1 do
-		print("HERE I AM")
+	local z = 0
+	local n =string.len(s)
+	local str_reverse = string.reverse(s)
+	print("REVERSED: " .. str_reverse)
+	local num_substr = (n*(n+1)/2)+1
+
+	while count < num_substr do
+		print("COUNT IN LOOP: " .. count)
+		-- coroutine.yield(string.sub(str_reverse, count, count))
+		coroutine.yield(string.sub(str_reverse, count, count))
 		count = count + 1
-		coroutine.yield(s)
 	end
 end
 
