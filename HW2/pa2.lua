@@ -69,12 +69,19 @@ function pa2.collatz(k)
 	return iter, nil, nil
 end
 
-function pa2.backsubs(s)
-	coroutine.yield(s)
+function pa2.backSubs(s)
+
+	local n = #s
+	local str_reverse = string.reverse(s)
+	local num_substr = (n*(n+1)/2)+1
+	local count = 0
+	while count <= num_substr -1 do
+		print("HERE I AM")
+		count = count + 1
+		coroutine.yield(s)
+	end
 end
 
-c = coroutine.create(pa2.backsubs)
-ok, value = coroutine.resume(c, s)
 
 
 return pa2
