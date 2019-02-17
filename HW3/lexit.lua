@@ -1,6 +1,6 @@
 -- Chris McClure
 -- CS331 HW3
--- Last Date Modified: 2/15/19
+-- Last Date Modified: 2/17/19
 -- lexit.lua
 
 local lexit = {}
@@ -98,6 +98,7 @@ function lexit.lex(program)
 	local handlers  -- Dispatch table; value created later
 	local prevstr 	-- previous string
 	local prevcat	-- previous category
+	local nexstate  -- previous state
 
 
     -- ***** States *****
@@ -214,6 +215,9 @@ function lexit.lex(program)
     local function handle_LETTER()
     	if isLetter(ch) or isDigit(ch) or ch == "_" then 
     		add1()
+    	elseif ch == "+" then
+    		state = DONE
+    		category = lexit.ID
     	else
     		state = DONE
     		if lexstr == "cr" or lexstr == "def"
@@ -234,8 +238,17 @@ function lexit.lex(program)
     	if isDigit(ch) then 
     		add1()
     	elseif ch == "E" or ch == "e" then
-    		add1()
-    		state = PLUS
+    		if nextChar() == "-" then
+    			state = DONE
+    			category = lexit.NUMLIT
+    			nexstate = EXP
+    		elseif nextChar() == "" or nextChar() == "e"
+    			or nextChar() == "E" then -- end of input?
+    			state = DONE
+    			category = lexit.NUMLIT
+    		else
+		    	state = EXP
+		    end
    		elseif nextChar() == "." then
    			state = DONE
    			category = lexit.PUNCT
@@ -275,6 +288,9 @@ function lexit.lex(program)
 	            state = DONE
 	            category = lexit.OP
 	        end
+	    elseif prevstr == "e" or prevstr == "E" then
+	    	state = DONE
+	    	category = lexit.OP
         elseif isDigit(ch) then
             add1()
             state = DIGIT
@@ -285,12 +301,15 @@ function lexit.lex(program)
     end
 
     local function handle_MINUS()
-        if ch == "-" or ch == "=" then
+    	if nexstate == EXP then
+    		print("prevstate was exp")
+    		state = EXP
+        elseif ch == "-" or ch == "=" then
             state = DONE
             category = lexit.OP
         elseif isDigit(ch) then
-            add1()
-            state = DIGIT
+		    add1()
+			state = DIGIT
         else
             state = DONE
             category = lexit.OP
@@ -309,14 +328,17 @@ function lexit.lex(program)
     end
 
     local function handle_EXP()
-    	print("IN HANDLE_EXP")
-    	if nextChar() == "-" then
-    		state = DONE
-    		category = lexit.MAL
+    	if ch == "e" or ch == "E" then
+    		add1()
+    	elseif isDigit(ch) and nexstate == EXP then
+	    	state = DONE
+	    	category = lexit.OP
+    	elseif ch == "+" then
+    		add1()
+    		state = PLUS
     	else
     		add1()
-    		state = EXP
-    		category = lexit.NUMLIT
+    		state = DIGIT
     	end
 	end
 
@@ -338,7 +360,6 @@ function lexit.lex(program)
     	if pos > program:len() then
     		return nil, nil
     	end
-    	-- print("PROGRAM: " .. program)
     	lexstr = ""
     	state = START
     	while state ~= DONE do
@@ -346,10 +367,9 @@ function lexit.lex(program)
     		handlers[state]()
     	end
     	skipWhiteSpace()
-    	-- print("CATEGORY: " .. category)
+    	prevstr	 = lexstr
     	return lexstr, category
     end
-
     pos = 1
     skipWhiteSpace()
     return getLex, nil, nil
