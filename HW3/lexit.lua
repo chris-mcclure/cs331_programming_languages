@@ -190,9 +190,6 @@ function lexit.lex(program)
     	elseif isDigit(ch) then
     		add1()
     		state = DIGIT
-    	elseif ch == "." then
-    		add1()
-    		state = DOT
     	elseif ch == "+" then
     		add1()
     		state = PLUS
@@ -236,9 +233,12 @@ function lexit.lex(program)
     local function handle_DIGIT()
     	if isDigit(ch) then 
     		add1()
-    	elseif ch == "." then
-   			add1()
-   			state = DIGDOT
+    	elseif ch == "E" or ch == "e" then
+    		add1()
+    		state = PLUS
+   		elseif nextChar() == "." then
+   			state = DONE
+   			category = lexit.PUNCT
    		else
    			state = DONE
    			category = lexit.NUMLIT
@@ -258,30 +258,26 @@ function lexit.lex(program)
     local function handle_DOT()
         if isDigit(ch) then
             add1()
-            state = DIGDOT
+            state = lexit.NUMLIT
         else
             state = DONE
-            category = lexit.OP
+            category = lexit.PUNCT
         end
     end
 
     local function handle_PLUS()
         if ch == "+" or ch == "=" then
-            add1()
-            state = DONE
-            category = lexit.OP
+        	if isDigit(nextChar()) then
+        		add1()
+        		state = DIGIT
+        	else
+	            add1()
+	            state = DONE
+	            category = lexit.OP
+	        end
         elseif isDigit(ch) then
             add1()
             state = DIGIT
-        elseif ch == "." then
-            if isDigit(nextChar()) then
-                add1()  -- add dot to lexeme
-                add1()  -- add digit to lexeme (OPTIONAL)
-                state = DIGDOT
-            else  -- lexeme is just "+"; do not add dot to lexeme
-                state = DONE
-                category = lexit.OP
-            end
         else
             state = DONE
             category = lexit.OP
@@ -290,21 +286,11 @@ function lexit.lex(program)
 
     local function handle_MINUS()
         if ch == "-" or ch == "=" then
-            add1()
             state = DONE
             category = lexit.OP
         elseif isDigit(ch) then
             add1()
             state = DIGIT
-        elseif ch == "." then
-            if isDigit(nextChar()) then
-                add1()  -- add dot to lexeme
-                add1()  -- add digit to lexeme (OPTIONAL)
-                state = DIGDOT
-            else  -- lexeme is just "-"; do not add dot to lexeme
-                state = DONE
-                category = lexit.OP
-            end
         else
             state = DONE
             category = lexit.OP
@@ -352,7 +338,7 @@ function lexit.lex(program)
     	if pos > program:len() then
     		return nil, nil
     	end
-    	print("PROGRAM: " .. program)
+    	-- print("PROGRAM: " .. program)
     	lexstr = ""
     	state = START
     	while state ~= DONE do
@@ -360,7 +346,7 @@ function lexit.lex(program)
     		handlers[state]()
     	end
     	skipWhiteSpace()
-    	print("CATEGORY: " .. category)
+    	-- print("CATEGORY: " .. category)
     	return lexstr, category
     end
 
