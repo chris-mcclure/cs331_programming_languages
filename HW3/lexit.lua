@@ -99,7 +99,8 @@ function lexit.lex(program)
 	local prevstr 	-- previous string
 	local prevcat	-- previous category
 	local nexstate  -- previous state
-
+    local prevchar
+    local expFlag 
 
     -- ***** States *****
 
@@ -107,12 +108,12 @@ function lexit.lex(program)
     local START  = 1
     local LETTER = 2
     local DIGIT  = 3
-    local DIGDOT = 4
-    local DOT    = 5
-    local PLUS   = 6
-    local MINUS  = 7
-    local STAR   = 8
-    local EXP	 = 9
+    local DOT    = 4
+    local PLUS   = 5
+    local MINUS  = 6
+    local STAR   = 7
+    local EXP	 = 8
+    local STR    = 9
 
     -- DR. CHAPPELL'S UTITLITY FUNCTIONS FROM lexit.LUA
     -- ***** Character-Related Utility Functions *****
@@ -132,6 +133,15 @@ function lexit.lex(program)
     -- is past the end.
     local function nextChar()
         return program:sub(pos+1, pos+1)
+    end
+
+    local function inTwoChars()
+        return program:sub(pos+2, pos+2)
+    end
+
+    -- may want to remove this, might be backtracking
+    local function lastChar()
+        return program:sub(pos-1, pos-1)
     end
 
     -- drop1
@@ -197,6 +207,9 @@ function lexit.lex(program)
     	elseif ch == "-" then
     		add1()
     		state = MINUS
+        elseif ch == "\"" or ch == "\'" then
+            add1()
+            state = STR
     	elseif ch == "*" or ch == "/" or ch == "=" 
     		or ch == "&" or ch == "|" or ch == "!" or 
     		ch == "<" or ch == ">" or ch == "%" or ch == "[" 
@@ -213,8 +226,11 @@ function lexit.lex(program)
 
     -- *********** handle_LETTER() **********
     local function handle_LETTER()
-    	if isLetter(ch) or isDigit(ch) or ch == "_" then 
+    	if isLetter(ch) or isDigit(ch) or ch == "_" then --or ch == " " then 
     		add1()
+
+        -- elseif ch == "\"" or ch == "\'" then
+        --     state = STR
     	elseif ch == "+" then
     		state = DONE
     		category = lexit.ID
@@ -235,20 +251,21 @@ function lexit.lex(program)
 
 	-- *********** handle_DIGIT() **********
     local function handle_DIGIT()
-    	if isDigit(ch) then 
-    		add1()
+    	if isDigit(ch) then
+            if prevchar == "e" and nextChar() == "e" then
+                add1()
+                state = DONE
+                category = lexit.NUMLIT
+            elseif nextChar() == "e" and prevchar == "+" 
+                and expFlag == "!" then
+                add1()
+                state = DONE
+                category = lexit.NUMLIT
+            else
+    		  add1()
+            end  
     	elseif ch == "E" or ch == "e" then
-    		if nextChar() == "-" then
-    			state = DONE
-    			category = lexit.NUMLIT
-    			nexstate = EXP
-    		elseif nextChar() == "" or nextChar() == "e"
-    			or nextChar() == "E" then -- end of input?
-    			state = DONE
-    			category = lexit.NUMLIT
-    		else
-		    	state = EXP
-		    end
+            state = EXP
    		elseif nextChar() == "." then
    			state = DONE
    			category = lexit.PUNCT
@@ -258,15 +275,6 @@ function lexit.lex(program)
    		end
    	end
     
-
-    local function handle_DIGDOT()
-        if isDigit(ch) then
-            add1()
-        else
-            state = DONE
-            category = lexit.NUMLIT
-        end
-    end
 
     local function handle_DOT()
         if isDigit(ch) then
@@ -281,8 +289,12 @@ function lexit.lex(program)
     local function handle_PLUS()
         if ch == "+" or ch == "=" then
         	if isDigit(nextChar()) then
+                prevchar = ch
         		add1()
         		state = DIGIT
+            elseif nextChar() == "" then
+                state = DONE 
+                category = lexit.NUMLIT
         	else
 	            add1()
 	            state = DONE
@@ -301,9 +313,9 @@ function lexit.lex(program)
     end
 
     local function handle_MINUS()
-    	if nexstate == EXP then
-    		print("prevstate was exp")
-    		state = EXP
+    	if prevstr == "e" or prevstr == "E" then
+    		state = DONE
+            category = lexit.OP
         elseif ch == "-" or ch == "=" then
             state = DONE
             category = lexit.OP
@@ -313,6 +325,24 @@ function lexit.lex(program)
         else
             state = DONE
             category = lexit.OP
+        end
+    end
+
+    local function handle_STR()
+
+        if ch == "\"" or ch == "\'" then
+            add1()
+            state = DONE
+            category = lexit.STRLIT
+        elseif isLetter(ch) then
+            add1()
+            state = LETTER
+        elseif isDigit(ch) then
+            add1()
+            state = DIGIT
+        else 
+            state = DONE
+            category = lexit.STRLIT
         end
     end
 
@@ -327,20 +357,31 @@ function lexit.lex(program)
         end
     end
 
-    local function handle_EXP()
-    	if ch == "e" or ch == "E" then
-    		add1()
-    	elseif isDigit(ch) and nexstate == EXP then
-	    	state = DONE
-	    	category = lexit.OP
-    	elseif ch == "+" then
-    		add1()
-    		state = PLUS
-    	else
-    		add1()
-    		state = DIGIT
-    	end
-	end
+    local function  handle_EXP()
+        if nextChar() == "+" then
+            if inTwoChars() == "" then
+                state = DONE
+                category = lexit.NUMLIT
+            elseif inTwoChars() == "e" or lastChar == "E" then
+                state = DONE
+                category = lexit.NUMLIT
+            else
+                expFlag = "!"
+                add1()
+                state = PLUS
+            end
+        elseif isDigit(nextChar()) then
+            prevchar = ch
+            add1()
+            state = DIGIT
+        elseif nextChar() == "-" then
+            state = DONE
+            category = lexit.NUMLIT
+        else
+            state = DONE
+            category = lexit.NUMLIT
+        end
+    end
 
 
     handlers = {
@@ -348,12 +389,12 @@ function lexit.lex(program)
 	    [START]=handle_START,
 	    [LETTER]=handle_LETTER,
 	    [DIGIT]=handle_DIGIT,
-	    [DIGDOT]=handle_DIGDOT,
 	    [DOT]=handle_DOT,
 	    [PLUS]=handle_PLUS,
 	    [MINUS]=handle_MINUS,
 	    [STAR]=handle_STAR,
 	    [EXP]=handle_EXP,
+        [STR]=handle_STR
 	}
 
     local function getLex(dummy1, dummy2)
