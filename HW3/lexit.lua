@@ -139,11 +139,6 @@ function lexit.lex(program)
         return program:sub(pos+2, pos+2)
     end
 
-    -- may want to remove this, might be backtracking
-    local function lastChar()
-        return program:sub(pos-1, pos-1)
-    end
-
     -- drop1
     -- Move pos to the next character.
     local function drop1()
@@ -202,12 +197,14 @@ function lexit.lex(program)
     		add1()
     		state = DIGIT
     	elseif ch == "+" then
+            prevchar = ch
     		add1()
     		state = PLUS
     	elseif ch == "-" then
     		add1()
     		state = MINUS
-        elseif ch == "\"" or ch == "\'" then
+        elseif ch == '"' or ch == "'" then
+            prevchar = ch
             add1()
             state = STR
     	elseif ch == "*" or ch == "/" or ch == "=" 
@@ -226,11 +223,8 @@ function lexit.lex(program)
 
     -- *********** handle_LETTER() **********
     local function handle_LETTER()
-    	if isLetter(ch) or isDigit(ch) or ch == "_" then --or ch == " " then 
-    		add1()
-
-        -- elseif ch == "\"" or ch == "\'" then
-        --     state = STR
+    	if isLetter(ch) or isDigit(ch) or ch == "_" then 
+    		  add1()
     	elseif ch == "+" then
     		state = DONE
     		category = lexit.ID
@@ -294,7 +288,7 @@ function lexit.lex(program)
         		state = DIGIT
             elseif nextChar() == "" then
                 state = DONE 
-                category = lexit.NUMLIT
+                category = lexit.OP
         	else
 	            add1()
 	            state = DONE
@@ -329,18 +323,21 @@ function lexit.lex(program)
     end
 
     local function handle_STR()
-
-        if ch == "\"" or ch == "\'" then
+        if ch == "\n" then
+            add1()
+            state = DONE
+            category = lexit.MAL
+        elseif ch ~= prevchar and ch ~= "" then
+                add1()
+        elseif ch == prevchar and ch ~= "" then
             add1()
             state = DONE
             category = lexit.STRLIT
-        elseif isLetter(ch) then
+        elseif ch ~= prevchar and ch == "" then
+            state = DONE
+            category = lexit.MAL
+        else
             add1()
-            state = LETTER
-        elseif isDigit(ch) then
-            add1()
-            state = DIGIT
-        else 
             state = DONE
             category = lexit.STRLIT
         end
@@ -362,7 +359,7 @@ function lexit.lex(program)
             if inTwoChars() == "" then
                 state = DONE
                 category = lexit.NUMLIT
-            elseif inTwoChars() == "e" or lastChar == "E" then
+            elseif inTwoChars() == "e" then
                 state = DONE
                 category = lexit.NUMLIT
             else
