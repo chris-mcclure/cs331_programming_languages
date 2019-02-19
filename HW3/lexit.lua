@@ -199,7 +199,7 @@ function lexit.lex(program)
     		add1()
     		state = DIGIT
     	elseif ch == "+" then
-            if nextChar() == "+" then
+            if nextChar() == "+" and isDigit(inTwoChars()) then
                 add1()
                 state = DONE
                 category = lexit.OP
@@ -298,6 +298,16 @@ function lexit.lex(program)
             if prevstr == "*" then
                 add1() 
                 state = DIGIT
+            elseif prevstr == "+" then
+                add1()
+                state = DONE
+                category = lexit.NUMLIT
+            elseif isDigit(ch) and prevchar == "(" then
+                add1()
+                state = DIGIT
+            elseif ch == "+" and isDigit(nextChar()) then
+                add1()
+                state = DIGIT
             else
                 state = DONE
                 category = lexit.OP
@@ -330,7 +340,6 @@ function lexit.lex(program)
                 state = DIGIT
             end
         else
-            prevstate = lexit.OP
             state = DONE
             category = lexit.OP
         end
@@ -343,6 +352,15 @@ function lexit.lex(program)
             if prevstr == "*" then
                 add1()
                 state = DIGIT
+            elseif prevstr == "+" or prevstr == "-" then
+                if isDigit(nextChar()) then
+                    add1()
+                    state = DIGIT
+                else
+                    add1()
+                    state = DONE
+                    category = lexit.NUMLIT
+                end
             else
                 state = DONE
                 category = lexit.OP
@@ -393,11 +411,16 @@ function lexit.lex(program)
             state = DONE
             category = lexit.OP
         elseif ch == "=" then
-            prevchar = ch
-            add1()
-            state = DONE
-            category = lexit.OP
-        elseif ch == "+" or ch == "-" then  
+            if prevchar == "]" then
+                state = DONE
+                category = lexit.OP
+            else
+                prevchar = ch
+                add1()
+                state = DONE
+                category = lexit.OP
+            end
+        elseif ch == "+" or ch == "-" then 
             state = DONE
             category = lexit.OP
         elseif ch == " " and nextChar() == "|" or nextChar() == "&" then
@@ -418,7 +441,6 @@ function lexit.lex(program)
             category = lexit.PUNCT
         else
             prevchar = ch
-            prevstate = lexit.OP
             state = DONE
             category = lexit.OP
         end
