@@ -1,7 +1,10 @@
 -- Chris McClure
 -- CS331 HW3
--- Last Date Modified: 2/17/19
--- lexit.lua
+-- Last Date Modified: 2/19/19
+-- Purpose: lexer program being tested for hw3
+
+-- Several functions in the program are taken from
+-- Dr Chappell's lexer.lua code, specifically the utility functions.
 
 local lexit = {}
 
@@ -14,7 +17,6 @@ lexit.STRLIT	= 4
 lexit.OP		= 5
 lexit.PUNCT		= 6
 lexit.MAL 		= 7
-
 
 -- catnames
 -- table of lexeme category names
@@ -98,12 +100,10 @@ function lexit.lex(program)
 	local handlers  -- Dispatch table; value created later
 	local prevstr 	-- previous string
 	local prevcat	-- previous category
-	local prevstate  -- previous state
-    local prevchar
-    local expFlag 
+	local prevstate -- previous state
+    local prevchar  -- previous character that was read
 
     -- ***** States *****
-
     local DONE   = 0
     local START  = 1
     local LETTER = 2
@@ -123,7 +123,6 @@ function lexit.lex(program)
     -- value is a single-character string, or the empty string if pos is
     -- past the end.
     local function currChar()
-    	-- print("POS: " .. pos)
         return program:sub(pos, pos)
     end
 
@@ -156,7 +155,6 @@ function lexit.lex(program)
     -- skip white space and everything in a comment
     local function skipWhiteSpace()
     	while true do
-    		-- print("ch: " .. currChar())
     		while isWhiteSpace(currChar()) do
     			drop1() -- while the current char is a white
     			--space, keep increminting to the next char
@@ -177,14 +175,15 @@ function lexit.lex(program)
     	end
     end
 
-
-
-
     local function handle_DONE()
         io.write("ERROR: 'DONE' state should not be handled\n")
         assert(0)
     end
 
+    -- handle_start
+    -- This is the beginning of the lexstr. The function
+    -- looks at the first passed character of the lexeme category
+    -- and calls the appropriate state.
     local function handle_START()
     	if isIllegal(ch) then
     		add1()
@@ -208,7 +207,6 @@ function lexit.lex(program)
         		state = PLUS
             end
     	elseif ch == "-" then
-            -- prevchar = ch
     		add1()
     		state = MINUS
         elseif ch == '"' or ch == "'" then
@@ -231,7 +229,10 @@ function lexit.lex(program)
     end
 
 
-    -- *********** handle_LETTER() **********
+    -- handle_letter
+    -- adds letters and digits to the lexstr
+    -- if the lexstr is equal to a keyword, then the category 
+    -- is set to KEYWORD, ID otherwise.
     local function handle_LETTER()
     	if isLetter(ch) or isDigit(ch) or ch == "_" then 
     		  add1()
@@ -244,7 +245,7 @@ function lexit.lex(program)
     			or lexstr == "true" or lexstr == "while" 
     			or lexstr == "write" then
     				category = lexit.KEY
-                    prevstate = lexit.key
+                    prevstate = "" -- dummy to reset prevstate
     		else
                 prevstate = lexit.ID
     			category = lexit.ID
@@ -252,15 +253,14 @@ function lexit.lex(program)
     	end
     end
 
-	-- *********** handle_DIGIT() **********
+	-- handle_digit
+    -- This function adds digits to the lexstr and also checks
+    -- for possible exponents. If one is found, it passes control 
+    -- over to the exponent state.
     local function handle_DIGIT()
     	if isDigit(ch) then
-            if prevchar == "e" and nextChar() == "e" then
-                add1()
-                state = DONE
-                category = lexit.NUMLIT
-            elseif nextChar() == "e" and prevchar == "+" 
-                and expFlag == "!" then
+            if prevchar == "e" and nextChar() == "e" or
+            nextChar() == "e" and prevchar == "+" then
                 add1()
                 state = DONE
                 category = lexit.NUMLIT
@@ -279,17 +279,10 @@ function lexit.lex(program)
    		end
    	end
     
-
-    local function handle_DOT()
-        if isDigit(ch) then
-            add1()
-            state = lexit.NUMLIT
-        else
-            state = DONE
-            category = lexit.PUNCT
-        end
-    end
-
+    -- handle_plus
+    -- adds the character to lexstr depending on what the previous or
+    -- future states of the lexeme is, otherwise the state is set to done
+    -- and the category equals OPERATOR
     local function handle_PLUS()
         if prevstate == lexit.ID or prevstate == lexit.NUMLIT
         or prevstate == lexit.KEY or
@@ -302,10 +295,8 @@ function lexit.lex(program)
                 add1()
                 state = DONE
                 category = lexit.NUMLIT
-            elseif isDigit(ch) and prevchar == "(" then
-                add1()
-                state = DIGIT
-            elseif ch == "+" and isDigit(nextChar()) then
+            elseif isDigit(ch) and prevchar == "("
+            or ch == "+" and isDigit(nextChar()) then
                 add1()
                 state = DIGIT
             else
@@ -316,16 +307,14 @@ function lexit.lex(program)
             state = DONE
             category = lexit.OP
         elseif ch == "+" then --or ch == "=" then
-            if nextChar() == "=" or nextChar() == "+" then
+            if nextChar() == "=" or nextChar() == "+" 
+            or nextChar() == "" then
                 state = DONE
                 category = lexit.OP
         	elseif isDigit(nextChar()) then
                 prevchar = ch
         		add1()
         		state = DIGIT
-            elseif nextChar() == "" then
-                state = DONE 
-                category = lexit.OP
         	else
 	            add1()
 	            state = DONE
@@ -345,14 +334,15 @@ function lexit.lex(program)
         end
     end
 
+    -- handle_minus
+    -- adds the character to lexstr depending on what the previous or
+    -- future states of the lexeme is, otherwise the state is set to done
+    -- and the category is set to OPERATOR
     local function handle_MINUS()
         if prevstate == lexit.ID or prevstate == lexit.NUMLIT
         or prevstr == "true" or prevstr == "false"
         and isDigit(ch) then
-            if prevstr == "*" then
-                add1()
-                state = DIGIT
-            elseif prevstr == "+" or prevstr == "-" then
+            if prevstr == "+" or prevstr == "-" or prevstr == "*" then
                 if isDigit(nextChar()) then
                     add1()
                     state = DIGIT
@@ -365,11 +355,9 @@ function lexit.lex(program)
                 state = DONE
                 category = lexit.OP
             end
-    	elseif prevstr == "e" or prevstr == "E" then
+    	elseif prevstr == "e" or prevstr == "E" or
+        ch == "-" or ch == "=" then
     		state = DONE
-            category = lexit.OP
-        elseif ch == "-" or ch == "=" then
-            state = DONE
             category = lexit.OP
         elseif isDigit(ch) then
             if prevchar == "]" or prevchar == ")" then
@@ -385,17 +373,18 @@ function lexit.lex(program)
         end
     end
 
+    -- handle_str
+    -- adds an initial " or ' character, and then adds any character
+    -- to the string literal until it sees the same string character as 
+    -- the initial one. If the lexme finds a newline, it sets the category
+    -- to malformed.
     local function handle_STR()
         if ch == "\n" then
             add1()
             state = DONE
             category = lexit.MAL
         elseif ch ~= prevchar and ch ~= "" then
-                add1()
-        elseif ch == prevchar and ch ~= "" then
             add1()
-            state = DONE
-            category = lexit.STRLIT
         elseif ch ~= prevchar and ch == "" then
             state = DONE
             category = lexit.MAL
@@ -406,6 +395,10 @@ function lexit.lex(program)
         end
     end
 
+    -- handle_star
+    -- This function handles potential operators and determines whether
+    -- or not they are legal. If not, they are placed in the punctuation
+    -- category.
     local function handle_STAR()  -- Handle * or / or =
         if prevchar == "*" or prevchar == "/" and ch == "=" then
             state = DONE
@@ -426,12 +419,7 @@ function lexit.lex(program)
         elseif ch == " " and nextChar() == "|" or nextChar() == "&" then
             state = DONE
             category = lexit.PUNCT
-        elseif prevchar == "&" and ch == "&" then 
-            add1()
-            prevchar = ch
-            state = DONE
-            category =lexit.OP
-        elseif prevchar == "|" and ch == "|" then
+        elseif prevchar == "&" and ch == "&" or prevchar == "|" and ch == "|" then 
             add1()
             prevchar = ch
             state = DONE
@@ -446,16 +434,17 @@ function lexit.lex(program)
         end
     end
 
+    -- handle_exp
+    -- This function looks at the next characters in the passed 
+    -- program and determines if the characters should be added
+    -- to form a legal exponent, according to the lexeme specification.
+    -- For example, E+123 is legal, e-123 is illegal.
     local function  handle_EXP()
         if nextChar() == "+" then
-            if inTwoChars() == "" then
-                state = DONE
-                category = lexit.NUMLIT
-            elseif inTwoChars() == "e" then
+            if inTwoChars() == "" or inTwoChars() == "e" then
                 state = DONE
                 category = lexit.NUMLIT
             else
-                expFlag = "!"
                 add1()
                 state = PLUS
             end
@@ -463,16 +452,16 @@ function lexit.lex(program)
             prevchar = ch
             add1()
             state = DIGIT
-        elseif nextChar() == "-" then
-            state = DONE
-            category = lexit.NUMLIT
         else
             state = DONE
             category = lexit.NUMLIT
         end
     end
 
-
+    -- handlers
+    -- [STATE] = function
+    -- These handlers call their corresponding functions
+    -- based on the states that they're in.
     handlers = {
 	    [DONE]=handle_DONE,
 	    [START]=handle_START,
@@ -486,6 +475,11 @@ function lexit.lex(program)
         [STR]=handle_STR
 	}
 
+    -- getLex
+    -- creates an empty lexstr, and loops through the states
+    -- while adding to the lexstr, until STATE is equal to DONE
+    -- It then returns the lexstr and category to the calling
+    -- function.
     local function getLex(dummy1, dummy2)
     	if pos > program:len() then
     		return nil, nil
@@ -504,7 +498,5 @@ function lexit.lex(program)
     skipWhiteSpace()
     return getLex, nil, nil
 end
-
-
 
 return lexit
