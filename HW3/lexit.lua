@@ -98,7 +98,7 @@ function lexit.lex(program)
 	local handlers  -- Dispatch table; value created later
 	local prevstr 	-- previous string
 	local prevcat	-- previous category
-	local nexstate  -- previous state
+	local prevstate  -- previous state
     local prevchar
     local expFlag 
 
@@ -191,16 +191,24 @@ function lexit.lex(program)
     		state = DONE
     		category = lexit.MAL
     	elseif isLetter(ch) or ch == "_" then
+            prevchar = ch
 	    	add1()
 	    	state = LETTER
     	elseif isDigit(ch) then
+            prevchar = ch
     		add1()
     		state = DIGIT
     	elseif ch == "+" then
-            prevchar = ch
-    		add1()
-    		state = PLUS
+            if nextChar() == "+" then
+                add1()
+                state = DONE
+                category = lexit.OP
+            else
+        		add1()
+        		state = PLUS
+            end
     	elseif ch == "-" then
+            -- prevchar = ch
     		add1()
     		state = MINUS
         elseif ch == '"' or ch == "'" then
@@ -212,8 +220,10 @@ function lexit.lex(program)
     		ch == "<" or ch == ">" or ch == "%" or ch == "[" 
     		or ch == "]" then
     		add1()
+            prevchar = ch
     		state = STAR
     	else
+            prevchar = ch
     		add1()
     		state = DONE
     		category = lexit.PUNCT
@@ -225,9 +235,6 @@ function lexit.lex(program)
     local function handle_LETTER()
     	if isLetter(ch) or isDigit(ch) or ch == "_" then 
     		  add1()
-    	elseif ch == "+" then
-    		state = DONE
-    		category = lexit.ID
     	else
     		state = DONE
     		if lexstr == "cr" or lexstr == "def"
@@ -237,7 +244,9 @@ function lexit.lex(program)
     			or lexstr == "true" or lexstr == "while" 
     			or lexstr == "write" then
     				category = lexit.KEY
+                    prevstate = lexit.key
     		else
+                prevstate = lexit.ID
     			category = lexit.ID
     		end
     	end
@@ -265,6 +274,7 @@ function lexit.lex(program)
    			category = lexit.PUNCT
    		else
    			state = DONE
+            prevstate = lexit.NUMLIT
    			category = lexit.NUMLIT
    		end
    	end
@@ -281,8 +291,25 @@ function lexit.lex(program)
     end
 
     local function handle_PLUS()
-        if ch == "+" or ch == "=" then
-        	if isDigit(nextChar()) then
+        if prevstate == lexit.ID or prevstate == lexit.NUMLIT
+        or prevstate == lexit.KEY or
+        prevstr == "true" or prevstr == "false"
+        and isDigit(ch) then
+            if prevstr == "*" then
+                add1() 
+                state = DIGIT
+            else
+                state = DONE
+                category = lexit.OP
+            end
+        elseif prevstr == "e" or prevstr == "E" then
+            state = DONE
+            category = lexit.OP
+        elseif ch == "+" then --or ch == "=" then
+            if nextChar() == "=" or nextChar() == "+" then
+                state = DONE
+                category = lexit.OP
+        	elseif isDigit(nextChar()) then
                 prevchar = ch
         		add1()
         		state = DIGIT
@@ -294,28 +321,46 @@ function lexit.lex(program)
 	            state = DONE
 	            category = lexit.OP
 	        end
-	    elseif prevstr == "e" or prevstr == "E" then
-	    	state = DONE
-	    	category = lexit.OP
         elseif isDigit(ch) then
-            add1()
-            state = DIGIT
+            if prevchar == "]" or prevchar == ")" then
+                state = DONE
+                category = lexit.OP
+            else
+                add1()
+                state = DIGIT
+            end
         else
+            prevstate = lexit.OP
             state = DONE
             category = lexit.OP
         end
     end
 
     local function handle_MINUS()
-    	if prevstr == "e" or prevstr == "E" then
+        if prevstate == lexit.ID or prevstate == lexit.NUMLIT
+        or prevstr == "true" or prevstr == "false"
+        and isDigit(ch) then
+            if prevstr == "*" then
+                add1()
+                state = DIGIT
+            else
+                state = DONE
+                category = lexit.OP
+            end
+    	elseif prevstr == "e" or prevstr == "E" then
     		state = DONE
             category = lexit.OP
         elseif ch == "-" or ch == "=" then
             state = DONE
             category = lexit.OP
         elseif isDigit(ch) then
-		    add1()
-			state = DIGIT
+            if prevchar == "]" or prevchar == ")" then
+                state = DONE
+                category = lexit.OP
+            else
+    		    add1()
+    			state = DIGIT
+            end
         else
             state = DONE
             category = lexit.OP
@@ -344,11 +389,36 @@ function lexit.lex(program)
     end
 
     local function handle_STAR()  -- Handle * or / or =
-        if ch == "=" or ch == "|" or ch == "&" then
+        if prevchar == "*" or prevchar == "/" and ch == "=" then
+            state = DONE
+            category = lexit.OP
+        elseif ch == "=" then
+            prevchar = ch
             add1()
             state = DONE
             category = lexit.OP
+        elseif ch == "+" or ch == "-" then  
+            state = DONE
+            category = lexit.OP
+        elseif ch == " " and nextChar() == "|" or nextChar() == "&" then
+            state = DONE
+            category = lexit.PUNCT
+        elseif prevchar == "&" and ch == "&" then 
+            add1()
+            prevchar = ch
+            state = DONE
+            category =lexit.OP
+        elseif prevchar == "|" and ch == "|" then
+            add1()
+            prevchar = ch
+            state = DONE
+            category =lexit.OP
+        elseif prevchar == "&" or prevchar == "|" and ch == "" then
+            state = DONE
+            category = lexit.PUNCT
         else
+            prevchar = ch
+            prevstate = lexit.OP
             state = DONE
             category = lexit.OP
         end
