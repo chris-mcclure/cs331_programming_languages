@@ -103,7 +103,7 @@ end
 -- so, then advance to next lexeme & return true. If not, then do not
 -- advance, return false.
 -- Function init must be called before this function is called.
-local function match(s)
+local function matchString(s)
 	if lexstr == s then 
 		advance()
 		return true
@@ -152,7 +152,7 @@ function parseit.parse(prog)
 	init(prog)
 
 	-- Get results from parsing
-	local good, ast = parse_expr()  -- Parse start symbol
+	local good, ast = parse_stmt_list()  -- Parse start symbol
 	local done = atEnd()
 
 	-- And return them
@@ -160,6 +160,379 @@ function parseit.parse(prog)
 end
 
 
+
+-- parse_stmt_list
+-- Parsing function for nonterminal "stmt_list"
+-- -- Function init must be called before this function is called.
+function parse_stmt_list()
+	local good, ast, newast
+
+	ast = { STMT_LIST }
+	while true do
+		if lexstr ~= "write"
+			and lexstr ~= "def"
+			and lexstr ~= "if" 
+			and lexstr ~= "while"
+			and lexstr ~= "return"
+			and lexcat ~= lexit.ID then
+				return true, ast
+		end
+
+		good, newast = parse_stmt()
+		if not good then
+			return false, nil
+		end
+
+		table.insert(ast, newast)
+	end
+end
+
+
+-- parse_stmt
+-- Parsing function for nonterminal "statement".
+-- Function init must be called before this function is called.
+function parse_stmt()
+	local good, ast1, ast2, savelex
+
+	savelex = lexstr
+
+	if matchString("write") then
+		if not matchString("(") then
+			return false, nil
+		end
+
+		good, ast1 = parse_write_arg()
+		if not good then
+			return false, nil
+		end
+
+		ast2 = { WRITE_STMT, ast1 }
+
+		while matchString(",") do
+			good, ast1 = parse_write_arg()
+			if not good then
+				return false, nil
+			end
+
+			table.insert(ast2, ast1)
+		end
+
+		if not matchString(")") then
+			return false, nil
+		end
+		return true, ast2
+	elseif matchString("def") then
+		if not matchCat(lexit.ID) then
+			return false, nil
+		end
+		if not matchString("(") then
+			return false, nil
+		end
+		if not matchString(")") then
+			return false, nil
+		end
+
+		ast2 = { FUNC_DEF, ast1 }
+
+		good, ast1 = parse_stmt_list
+		if not good then
+			return false, nil
+		end
+
+		table.insert(ast2, ast1)
+
+		if not matchString("end") then
+			return false, nil
+		end
+		return true, ast2
+
+    elseif matchString("if") then
+        good, ast1 = parse_expr()
+        if not good then
+            return false, nil
+        end
+
+        good, ast1 = parse_stmt_list()
+        if not good then
+            return false, nil
+        end
+        
+        ast2 = { IF_STMT, ast1 }
+
+        while true do 
+            if not matchString("elseif") then
+                return false, nil
+            end
+            good, ast1 = parse_expr()
+            if not good then
+                return false, nil
+            end
+            good, ast2 = parse_stmt_list()
+
+            if not good then
+                return false, nil
+            end
+
+            table.insert(ast2, ast1)
+        end
+
+        if matchString("else") then
+            good, ast1 = parse_stmt_list()
+            if not good then
+                return false, nil
+            end 
+        end
+
+        if not matchString("end") then
+            return false, nil
+        end
+
+        return true, ast2
+ 
+    elseif matchString("while") then
+        good, ast1 = parse_expr()
+        if not good then
+            return false, nil
+        end
+
+        good, ast1 = parse_stmt_list()
+        if not good then
+            return false, nil
+        end
+        ast2 = { WHILE_STMT, ast1 }
+
+        table.insert(ast2, ast1)
+        
+        if not matchString("end") then
+            return false, nil
+        end
+
+        return true, ast2
+
+    elseif matchString("return") then
+        good, ast1 = parse_expr()
+        if not good then
+            return false, nil
+        end
+        ast2 = { RETURN_STMT, ast1 } 
+
+        table.insert(ast2, ast1)
+
+        return true, ast2
+
+    elseif matchCat(lexit.ID) then
+        if matchString("(") then
+        	if not matchString("(") then
+            	return false, nil
+            end
+        end
+        if not matchString("[") then
+            return false, nil
+        end
+        if not parse_expr() then
+            return false, nil
+        end
+        if not matchString("]") then
+        	if not matchString("=") then
+            	return false, nil
+            end
+        end
+
+        good, ast1 = parse_expr()
+
+        if not good then
+            return false, nil
+        end
+
+        ast2 = { ASSN_STMT, ast1 }
+        table.insert(ast2, ast1)
+        return true, ast2
+	end
+end
+
+function parse_write_arg()
+    local good, ast1, ast2, savelex 
+    savelex = lexstr
+    if matchString("cr") then
+        return true, { CR_OUT, nil }
+    elseif matchCat(lexit.STRLIT) then
+        return true, { STRLIT_OUT, savelex }
+    elseif parse_expr() then
+        good, ast1 = parse_expr()
+        if not good then
+            return false, nil
+        end
+        ast2 = {WRITE_STMT, ast1} 
+        table.insert(ast2, ast1)
+        return true, ast2  
+    else
+        return false, nil
+    end
+end
+
+function parse_expr() 
+    local good, ast1, ast2
+    good, ast1 = parse_comp_expr()
+    if not good then
+        return false, nil
+    end
+
+    ast2 = { BIN_OP, ast1 }
+
+    while true do
+        if not matchString("&&") and not matchString("||") then
+            return false, nil
+        end
+        good, ast1 = parse_comp_expr()
+        if not good then
+            return false, nil
+        end
+
+        table.insert(ast2, ast1)
+    end
+    return true, ast2
+end
+
+function parse_comp_expr()
+    local good, ast1, ast2
+    if matchString("!") then
+        if parse_comp_expr() then
+            good, ast1 = parse_comp_expr()
+            if not good then
+                return false, nil
+            end
+
+            ast2 = { UN_OP, ast1 }
+            table.insert(ast2, ast1)
+            return true, ast2
+        else
+            return false, nil
+        end
+
+    elseif parse_arith_expr() then
+        good, ast1 = parse_term()
+        if not good then
+            return false, nil
+        end
+        ast2 = { BIN_OP, ast1 }
+
+        while true do
+            if not matchString("==") and
+                not matchString("!=") and
+                not matchString("<") and
+                not matchString("<=") and 
+                not matchString(">") and 
+                not matchString(">=") then
+                    return false, nil
+            end
+            good, ast1 = parse_arith_expr()
+            if not good then
+                return false, nil
+            end
+            table.insert(ast2, ast1)
+        end
+        return true, ast2
+    end
+end
+
+function parse_arith_expr()
+    local good, ast1, ast2
+    good, ast1 = parse_term()
+    if not good then
+        return false, nil
+    end
+
+    ast2 = { BIN_OP, ast1 }
+    while true do
+        if not matchString("+") and
+            not matchString("-") then
+                return false, nil
+        end
+        good, ast1 = parse_term()
+        if not good then
+            return false, nil
+        end
+        table.insert(ast2, ast1)
+    end
+    return true, ast2
+end
+
+function parse_term()
+    local good, ast1, ast2
+    good, ast1 = parse_factor()
+    if not good then
+        return false, nil
+    end
+
+    ast2 = { STRLIT_OUT, ast1 }
+    while true do
+        if not matchString("*") and
+            not matchString("/") and
+            not matchString("%") then
+                return false, nil
+        end
+        good, ast1 = parse_factor()
+        if not good then
+            return false, nil
+        end
+        table.insert(ast2, ast1)
+    end
+    return true, ast2
+end
+
+function parse_factor()
+    local good, ast1, ast2
+    if matchString("(") then
+        if not parse_expr() then
+            return false, nil
+        elseif not matchString(")") then
+            return false, nil
+        end
+
+        good, ast1 = parse_expr()
+        if not good then
+            return false, nil
+        end
+        ast2 = { FUNC_DEF, ast1 }
+        table.insert(ast2, ast1)
+        return true, ast2
+    elseif matchString("+") or matchString("-") then
+        good, ast1 = parse_factor()
+        if not good then
+            return false, nil
+        end
+        ast2 = { NUMLIT_VAL, ast1 }
+        table.insert(ast2, ast1)
+        return true, ast1
+    elseif matchCat(lexit.NUMLIT) then
+        return true, { NUMLIT_VAL, ast1 }
+    elseif matchString("true") or matchString("false") then
+        return true, { BOOLLIT_VAL, ast1 }
+    elseif matchString("readnum") then
+        if not matchString("(") and not matchString(")") then
+            return false, nil
+        end
+        return true, { READNUM_CALL, ast1 }
+    elseif matchCat(lexit.ID) then
+        if not matchString("(") and not matchString(")") then
+            return false, nil
+        end
+        if not matchString("[") then
+            return false, nil
+        end
+        if not parse_expr() then
+            return false, nil
+        end
+        if not matchString("]") then
+            return false, nil
+        end
+        ast2 = { ARRAY_VAR, ast1 }
+        table.insert(ast2, ast1)
+        return true, ast2
+    else
+        return false, nil
+    end
+end
 
 -- Parsing Functions
 
