@@ -1,6 +1,6 @@
 -- Chris McClure
 -- CS331 HW4
--- Last Date Modified: 2/19/19
+-- Last Date Modified: 3/2/19
 -- Purpose: parser program being tested
 -- in conjunction with lexit.lua for HW4
 
@@ -150,7 +150,6 @@ local parse_factor
 function parseit.parse(prog)
 	-- Initialization
 	init(prog)
-
 	-- Get results from parsing
 	local good, ast = parse_stmt_list()  -- Parse start symbol
 	local done = atEnd()
@@ -165,6 +164,7 @@ end
 -- Parsing function for nonterminal "stmt_list"
 -- -- Function init must be called before this function is called.
 function parse_stmt_list()
+
 	local good, ast, newast
 
 	ast = { STMT_LIST }
@@ -179,6 +179,7 @@ function parse_stmt_list()
 		end
 
 		good, newast = parse_stmt()
+
 		if not good then
 			return false, nil
 		end
@@ -192,6 +193,7 @@ end
 -- Parsing function for nonterminal "statement".
 -- Function init must be called before this function is called.
 function parse_stmt()
+
 	local good, ast1, ast2, savelex
 
 	savelex = lexstr
@@ -222,6 +224,7 @@ function parse_stmt()
 		end
 		return true, ast2
 	elseif matchString("def") then
+		savelex = lexstr
 		if not matchCat(lexit.ID) then
 			return false, nil
 		end
@@ -232,14 +235,13 @@ function parse_stmt()
 			return false, nil
 		end
 
-		ast2 = { FUNC_DEF, ast1 }
 
-		good, ast1 = parse_stmt_list
+		good, ast1 = parse_stmt_list()
 		if not good then
 			return false, nil
 		end
 
-		table.insert(ast2, ast1)
+		ast2 = { FUNC_DEF, savelex, ast1 }
 
 		if not matchString("end") then
 			return false, nil
@@ -251,36 +253,36 @@ function parse_stmt()
         if not good then
             return false, nil
         end
-
-        good, ast1 = parse_stmt_list()
+        good, ast3 = parse_stmt_list()
         if not good then
             return false, nil
         end
-        
-        ast2 = { IF_STMT, ast1 }
+        ast2 = { IF_STMT, ast1, ast3 }
 
         while true do 
             if not matchString("elseif") then
-                return false, nil
+                break
             end
             good, ast1 = parse_expr()
-            if not good then
+            if not good then            	
                 return false, nil
             end
-            good, ast2 = parse_stmt_list()
+            good, ast3 = parse_stmt_list()
 
             if not good then
                 return false, nil
             end
 
             table.insert(ast2, ast1)
+            table.insert(ast2, ast3)
         end
-
         if matchString("else") then
-            good, ast1 = parse_stmt_list()
+
+            good, ast3 = parse_stmt_list()
             if not good then
                 return false, nil
-            end 
+            end
+            table.insert(ast2, ast3)
         end
 
         if not matchString("end") then
@@ -290,18 +292,19 @@ function parse_stmt()
         return true, ast2
  
     elseif matchString("while") then
+    	local ast3
         good, ast1 = parse_expr()
+
         if not good then
             return false, nil
         end
 
-        good, ast1 = parse_stmt_list()
+        good, ast3 = parse_stmt_list()
         if not good then
             return false, nil
         end
-        ast2 = { WHILE_STMT, ast1 }
 
-        table.insert(ast2, ast1)
+        ast2 = { WHILE_STMT, ast1, ast3 }
         
         if not matchString("end") then
             return false, nil
@@ -316,15 +319,15 @@ function parse_stmt()
         end
         ast2 = { RETURN_STMT, ast1 } 
 
-        table.insert(ast2, ast1)
-
         return true, ast2
 
     elseif matchCat(lexit.ID) then
         if matchString("(") then
-        	if not matchString("(") then
+        	if not matchString(")") then
             	return false, nil
             end
+            ast2 = { FUNC_CALL, savelex }
+            return true, ast2
         end
         if not matchString("[") then
             return false, nil
@@ -345,55 +348,57 @@ function parse_stmt()
         end
 
         ast2 = { ASSN_STMT, ast1 }
-        table.insert(ast2, ast1)
         return true, ast2
 	end
 end
 
 function parse_write_arg()
+
     local good, ast1, ast2, savelex 
     savelex = lexstr
     if matchString("cr") then
-        return true, { CR_OUT, nil }
+    	return true, { CR_OUT, nil }
     elseif matchCat(lexit.STRLIT) then
         return true, { STRLIT_OUT, savelex }
-    elseif parse_expr() then
+    else --parse_expr() then
         good, ast1 = parse_expr()
         if not good then
             return false, nil
         end
-        ast2 = {WRITE_STMT, ast1} 
-        table.insert(ast2, ast1)
+
+        ast2 = { WRITE_STMT, ast1 } 
         return true, ast2  
-    else
-        return false, nil
+    -- else
+    --     return false, nil
     end
 end
 
 function parse_expr() 
+
     local good, ast1, ast2
     good, ast1 = parse_comp_expr()
+
     if not good then
         return false, nil
     end
 
-    ast2 = { BIN_OP, ast1 }
+    -- ast2 = { BIN_OP, ast1 }
 
     while true do
         if not matchString("&&") and not matchString("||") then
-            return false, nil
+            break
         end
         good, ast1 = parse_comp_expr()
         if not good then
             return false, nil
         end
 
-        table.insert(ast2, ast1)
     end
-    return true, ast2
+    return true, ast1
 end
 
 function parse_comp_expr()
+
     local good, ast1, ast2
     if matchString("!") then
         if parse_comp_expr() then
@@ -403,18 +408,17 @@ function parse_comp_expr()
             end
 
             ast2 = { UN_OP, ast1 }
-            table.insert(ast2, ast1)
             return true, ast2
         else
             return false, nil
         end
+    else
+    	good, ast1 = parse_arith_expr()
 
-    elseif parse_arith_expr() then
-        good, ast1 = parse_term()
         if not good then
             return false, nil
         end
-        ast2 = { BIN_OP, ast1 }
+        -- ast2 = { BIN_OP, ast1 }
 
         while true do
             if not matchString("==") and
@@ -423,65 +427,68 @@ function parse_comp_expr()
                 not matchString("<=") and 
                 not matchString(">") and 
                 not matchString(">=") then
-                    return false, nil
+                    break
             end
             good, ast1 = parse_arith_expr()
             if not good then
                 return false, nil
             end
-            table.insert(ast2, ast1)
         end
-        return true, ast2
+        return true, ast1
     end
 end
 
 function parse_arith_expr()
+
     local good, ast1, ast2
     good, ast1 = parse_term()
     if not good then
         return false, nil
     end
 
-    ast2 = { BIN_OP, ast1 }
+    -- ast2 = { BIN_OP, ast1 }
     while true do
         if not matchString("+") and
             not matchString("-") then
-                return false, nil
+                break
         end
         good, ast1 = parse_term()
         if not good then
             return false, nil
         end
-        table.insert(ast2, ast1)
     end
-    return true, ast2
+    return true, ast1
 end
 
 function parse_term()
+
     local good, ast1, ast2
     good, ast1 = parse_factor()
+
     if not good then
         return false, nil
     end
 
-    ast2 = { STRLIT_OUT, ast1 }
+    -- ast2 = { STRLIT_OUT, ast1 }
     while true do
         if not matchString("*") and
             not matchString("/") and
             not matchString("%") then
-                return false, nil
+                break
         end
+
         good, ast1 = parse_factor()
+
         if not good then
             return false, nil
         end
-        table.insert(ast2, ast1)
     end
-    return true, ast2
+    return true, ast1
 end
 
 function parse_factor()
-    local good, ast1, ast2
+    local good, ast1, ast2, savelex
+    savelex = lexstr
     if matchString("(") then
         if not parse_expr() then
             return false, nil
@@ -494,7 +501,6 @@ function parse_factor()
             return false, nil
         end
         ast2 = { FUNC_DEF, ast1 }
-        table.insert(ast2, ast1)
         return true, ast2
     elseif matchString("+") or matchString("-") then
         good, ast1 = parse_factor()
@@ -502,10 +508,10 @@ function parse_factor()
             return false, nil
         end
         ast2 = { NUMLIT_VAL, ast1 }
-        table.insert(ast2, ast1)
-        return true, ast1
+        return true, ast2
     elseif matchCat(lexit.NUMLIT) then
-        return true, { NUMLIT_VAL, ast1 }
+    	ast2 = { NUMLIT_VAL, savelex }
+        return true, ast2
     elseif matchString("true") or matchString("false") then
         return true, { BOOLLIT_VAL, ast1 }
     elseif matchString("readnum") then
@@ -527,7 +533,6 @@ function parse_factor()
             return false, nil
         end
         ast2 = { ARRAY_VAR, ast1 }
-        table.insert(ast2, ast1)
         return true, ast2
     else
         return false, nil
