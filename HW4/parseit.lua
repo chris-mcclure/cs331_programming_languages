@@ -164,7 +164,6 @@ end
 -- Parsing function for nonterminal "stmt_list"
 -- -- Function init must be called before this function is called.
 function parse_stmt_list()
-
 	local good, ast, newast
 
 	ast = { STMT_LIST }
@@ -193,7 +192,6 @@ end
 -- Parsing function for nonterminal "statement".
 -- Function init must be called before this function is called.
 function parse_stmt()
-
 	local good, ast1, ast2, savelex
 
 	savelex = lexstr
@@ -329,25 +327,25 @@ function parse_stmt()
             ast2 = { FUNC_CALL, savelex }
             return true, ast2
         end
-        if not matchString("[") then
-            return false, nil
-        end
-        if not parse_expr() then
-            return false, nil
-        end
-        if not matchString("]") then
-        	if not matchString("=") then
-            	return false, nil
+        if matchString("[") then
+            good, ast1 = parse_expr()
+            if not good then
+                return false, nil
             end
+            if not matchString("]") then
+                return false, nil
+            end
+            ast3 = { ARRAY_VAR, savelex, ast1 }
+        else
+            ast3 = { SIMPLE_VAR, savelex, ast1 }
         end
 
-        good, ast1 = parse_expr()
-
-        if not good then
+        if not matchString("=") then
             return false, nil
         end
+        good, ast4 = parse_expr()
 
-        ast2 = { ASSN_STMT, ast1 }
+        ast2 = { ASSN_STMT, ast3,ast4 }
         return true, ast2
 	end
 end
@@ -513,26 +511,28 @@ function parse_factor()
     	ast2 = { NUMLIT_VAL, savelex }
         return true, ast2
     elseif matchString("true") or matchString("false") then
-        return true, { BOOLLIT_VAL, ast1 }
+        return true, { BOOLLIT_VAL, savelex }
     elseif matchString("readnum") then
         if not matchString("(") and not matchString(")") then
             return false, nil
         end
         return true, { READNUM_CALL, ast1 }
     elseif matchCat(lexit.ID) then
-        if not matchString("(") and not matchString(")") then
-            return false, nil
+        if matchString("(") then
+            if not matchString(")") then
+                return false, nil
+            end
         end
-        if not matchString("[") then
-            return false, nil
+        if matchString("[") then
+            good, ast1 = parse_expr()
+            if not good then
+                return false, nil
+            end
+            if not matchString("]") then
+                return false, nil
+            end
         end
-        if not parse_expr() then
-            return false, nil
-        end
-        if not matchString("]") then
-            return false, nil
-        end
-        ast2 = { ARRAY_VAR, ast1 }
+        ast2 = { SIMPLE_VAR, savelex }
         return true, ast2
     else
         return false, nil
