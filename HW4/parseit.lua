@@ -193,7 +193,6 @@ end
 -- Function init must be called before this function is called.
 function parse_stmt()
 	local good, ast1, ast2, savelex
-
 	savelex = lexstr
 
 	if matchString("write") then
@@ -340,13 +339,15 @@ function parse_stmt()
             ast3 = { SIMPLE_VAR, savelex, ast1 }
         end
 
-        if not matchString("=") then
-            return false, nil
-        end
-        good, ast4 = parse_expr()
+        if matchString("=") then
 
-        ast2 = { ASSN_STMT, ast3,ast4 }
-        return true, ast2
+            good, ast4 = parse_expr()
+            if not good then
+                return false, nil
+            end
+            ast2 = { ASSN_STMT, ast3,ast4 }
+            return true, ast2
+        end
 	end
 end
 
@@ -358,65 +359,58 @@ function parse_write_arg()
     	return true, { CR_OUT, nil }
     elseif matchCat(lexit.STRLIT) then
         return true, { STRLIT_OUT, savelex }
-    else --parse_expr() then
+    else 
         good, ast1 = parse_expr()
         if not good then
             return false, nil
         end
 
-        ast2 = { WRITE_STMT, ast1 } 
-        return true, ast2  
-    -- else
-    --     return false, nil
+        return true, ast1 
     end
 end
 
 function parse_expr() 
-
-    local good, ast1, ast2
+    local good, ast1, ast2, savelex
     good, ast1 = parse_comp_expr()
+    savelex = lexstr
 
     if not good then
         return false, nil
     end
 
-    -- ast2 = { BIN_OP, ast1 }
-
-    while true do
+    while true do        
         if not matchString("&&") and not matchString("||") then
             break
         end
-        good, ast1 = parse_comp_expr()
+        good, ast2 = parse_comp_expr()
         if not good then
             return false, nil
         end
+        ast1 = { { BIN_OP, savelex }, ast1, ast2 } 
 
     end
     return true, ast1
 end
 
 function parse_comp_expr()
+    local good, ast1, ast2, savelex
 
-    local good, ast1, ast2
+    savelex = lexstr
     if matchString("!") then
-        if parse_comp_expr() then
-            good, ast1 = parse_comp_expr()
-            if not good then
-                return false, nil
-            end
-
-            ast2 = { UN_OP, ast1 }
-            return true, ast2
-        else
+        good, ast1 = parse_comp_expr()
+        if not good then
             return false, nil
         end
+
+        ast2 = { { UN_OP, savelex} , ast1}
+        return true, ast2
     else
     	good, ast1 = parse_arith_expr()
 
         if not good then
             return false, nil
         end
-        -- ast2 = { BIN_OP, ast1 }
+        savelex = lexstr
 
         while true do
             if not matchString("==") and
@@ -427,10 +421,11 @@ function parse_comp_expr()
                 not matchString(">=") then
                     break
             end
-            good, ast1 = parse_arith_expr()
+            good, ast2 = parse_arith_expr()
             if not good then
                 return false, nil
             end
+            ast1 = { { BIN_OP, savelex }, ast1, ast2 }
         end
         return true, ast1
     end
@@ -438,36 +433,39 @@ end
 
 function parse_arith_expr()
 
-    local good, ast1, ast2
+    local good, ast1, ast2, savelex
+
     good, ast1 = parse_term()
     if not good then
         return false, nil
     end
+    savelex = lexstr
 
-    -- ast2 = { BIN_OP, ast1 }
     while true do
         if not matchString("+") and
             not matchString("-") then
                 break
         end
-        good, ast1 = parse_term()
+        good, ast2 = parse_term()
         if not good then
             return false, nil
         end
+        ast1 = { { BIN_OP, savelex }, ast1, ast2, }
+
     end
     return true, ast1
 end
 
 function parse_term()
 
-    local good, ast1, ast2
+    local good, ast1, ast2, savelex
     good, ast1 = parse_factor()
 
     if not good then
         return false, nil
     end
 
-    -- ast2 = { STRLIT_OUT, ast1 }
+    savelex = lexstr
     while true do
         if not matchString("*") and
             not matchString("/") and
@@ -475,11 +473,13 @@ function parse_term()
                 break
         end
 
-        good, ast1 = parse_factor()
+        good, ast2 = parse_factor()
 
         if not good then
             return false, nil
         end
+        ast1 = { { BIN_OP, savelex }, ast1, ast2 }
+
     end
     return true, ast1
 end
@@ -488,24 +488,22 @@ function parse_factor()
     local good, ast1, ast2, savelex
     savelex = lexstr
     if matchString("(") then
-        if not parse_expr() then
-            return false, nil
-        elseif not matchString(")") then
-            return false, nil
-        end
-
         good, ast1 = parse_expr()
         if not good then
             return false, nil
         end
-        ast2 = { FUNC_DEF, ast1 }
-        return true, ast2
+
+        if not matchString(")") then            
+            return false, nil
+        end
+        return true, ast1
+
     elseif matchString("+") or matchString("-") then
         good, ast1 = parse_factor()
         if not good then
             return false, nil
         end
-        ast2 = { NUMLIT_VAL, ast1 }
+        ast2 = { { UN_OP, savelex }, ast1 }
         return true, ast2
     elseif matchCat(lexit.NUMLIT) then
     	ast2 = { NUMLIT_VAL, savelex }
@@ -522,6 +520,8 @@ function parse_factor()
             if not matchString(")") then
                 return false, nil
             end
+            ast2 = {FUNC_CALL, savelex}
+            return true, ast2
         end
         if matchString("[") then
             good, ast1 = parse_expr()
@@ -531,6 +531,8 @@ function parse_factor()
             if not matchString("]") then
                 return false, nil
             end
+            ast1 = { ARRAY_VAR, savelex, ast1 }
+            return true, ast1
         end
         ast2 = { SIMPLE_VAR, savelex }
         return true, ast2
