@@ -1,3 +1,7 @@
+
+
+-- ******* REMEMBER TO CHANGE CHAPPELLS CODE BACK TO NORMAL!!!!!!!! *******
+
 -- Chris McClure
 -- CS331 HW4
 -- Last Date Modified: 3/2/19
@@ -182,7 +186,6 @@ function parse_stmt_list()
 		if not good then
 			return false, nil
 		end
-
 		table.insert(ast, newast)
 	end
 end
@@ -340,9 +343,8 @@ function parse_stmt()
         end
 
         if matchString("=") then
-
             good, ast4 = parse_expr()
-            if not good then
+            if not good then                
                 return false, nil
             end
             ast2 = { ASSN_STMT, ast3,ast4 }
@@ -372,13 +374,13 @@ end
 function parse_expr() 
     local good, ast1, ast2, savelex
     good, ast1 = parse_comp_expr()
-    savelex = lexstr
 
     if not good then
         return false, nil
     end
 
-    while true do        
+    while true do 
+        savelex = lexstr       
         if not matchString("&&") and not matchString("||") then
             break
         end
@@ -410,9 +412,9 @@ function parse_comp_expr()
         if not good then
             return false, nil
         end
-        savelex = lexstr
 
         while true do
+        savelex = lexstr
             if not matchString("==") and
                 not matchString("!=") and
                 not matchString("<") and
@@ -439,9 +441,9 @@ function parse_arith_expr()
     if not good then
         return false, nil
     end
-    savelex = lexstr
 
     while true do
+        savelex = lexstr
         if not matchString("+") and
             not matchString("-") then
                 break
@@ -465,14 +467,13 @@ function parse_term()
         return false, nil
     end
 
-    savelex = lexstr
     while true do
+        savelex = lexstr
         if not matchString("*") and
             not matchString("/") and
             not matchString("%") then
                 break
         end
-
         good, ast2 = parse_factor()
 
         if not good then
@@ -511,16 +512,19 @@ function parse_factor()
     elseif matchString("true") or matchString("false") then
         return true, { BOOLLIT_VAL, savelex }
     elseif matchString("readnum") then
-        if not matchString("(") and not matchString(")") then
-            return false, nil
+        if matchString("(") then
+            if not matchString(")") then
+                return false, nil
+            end
+            return true, { READNUM_CALL, ast1 }
         end
-        return true, { READNUM_CALL, ast1 }
+        return false, nil
     elseif matchCat(lexit.ID) then
         if matchString("(") then
             if not matchString(")") then
                 return false, nil
             end
-            ast2 = {FUNC_CALL, savelex}
+            ast2 = { FUNC_CALL, savelex }
             return true, ast2
         end
         if matchString("[") then
