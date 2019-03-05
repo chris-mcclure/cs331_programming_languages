@@ -102,6 +102,7 @@ function lexit.lex(program)
 	local prevcat	-- previous category
 	local prevstate -- previous state
     local prevchar  -- previous character that was read
+    local flag = false
 
     -- ***** States *****
     local DONE   = 0
@@ -285,16 +286,20 @@ function lexit.lex(program)
     -- and the category equals OPERATOR
     local function handle_PLUS()
         if prevstate == lexit.ID or prevstate == lexit.NUMLIT
-        or prevstate == lexit.KEY or
-        prevstr == "true" or prevstr == "false"
-        and isDigit(ch) then
-            if prevstr == "*" then
+        or prevstr == "true" or prevstr == "false"
+        or prevstr == ")" or prevstr == "]" then --and isDigit(ch) then
+            if prevstr == "*" and not nextChar("+") then
                 add1() 
                 state = DIGIT
-            elseif prevstr == "+" then
-                add1()
-                state = DONE
-                category = lexit.NUMLIT
+            elseif prevstr == "-" or prevstr == "+" or prevstr == "*" then
+            	if isDigit(ch) then
+            		add1()
+            		state = DONE
+            		category = lexit.NUMLIT
+                else
+	                state = DONE
+	                category =lexit.OP
+            	end
             elseif isDigit(ch) and prevchar == "("
             or ch == "+" and isDigit(nextChar()) then
                 add1()
@@ -320,7 +325,7 @@ function lexit.lex(program)
 	            state = DONE
 	            category = lexit.OP
 	        end
-        elseif isDigit(ch) then
+        elseif isDigit(ch) then            
             if prevchar == "]" or prevchar == ")" then
                 state = DONE
                 category = lexit.OP
@@ -346,6 +351,15 @@ function lexit.lex(program)
                 if isDigit(nextChar()) then
                     add1()
                     state = DIGIT
+                elseif prevstr == "-" or prevstr == "+" or prevstr == "*" then
+            		if isDigit(ch) then
+	            		add1()
+	            		state = DONE
+	            		category = lexit.NUMLIT
+	                else
+		                state = DONE
+		                category =lexit.OP
+	            	end
                 else
                     add1()
                     state = DONE
@@ -486,6 +500,7 @@ function lexit.lex(program)
     	end
     	lexstr = ""
     	state = START
+
     	while state ~= DONE do
     		ch = currChar()
     		handlers[state]()

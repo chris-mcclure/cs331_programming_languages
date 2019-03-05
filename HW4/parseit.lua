@@ -436,8 +436,8 @@ end
 function parse_arith_expr()
 
     local good, ast1, ast2, savelex
-
     good, ast1 = parse_term()
+
     if not good then
         return false, nil
     end
@@ -448,8 +448,10 @@ function parse_arith_expr()
             not matchString("-") then
                 break
         end
+
         good, ast2 = parse_term()
         if not good then
+
             return false, nil
         end
         ast1 = { { BIN_OP, savelex }, ast1, ast2, }
@@ -463,7 +465,7 @@ function parse_term()
     local good, ast1, ast2, savelex
     good, ast1 = parse_factor()
 
-    if not good then
+    if not good then      
         return false, nil
     end
 
@@ -490,7 +492,7 @@ function parse_factor()
     savelex = lexstr
     if matchString("(") then
         good, ast1 = parse_expr()
-        if not good then
+        if not good then            
             return false, nil
         end
 
@@ -501,7 +503,7 @@ function parse_factor()
 
     elseif matchString("+") or matchString("-") then
         good, ast1 = parse_factor()
-        if not good then
+        if not good then            
             return false, nil
         end
         ast2 = { { UN_OP, savelex }, ast1 }
