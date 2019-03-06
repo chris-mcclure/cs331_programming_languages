@@ -1,6 +1,6 @@
 -- Chris McClure
 -- CS331 HW3
--- Last Date Modified: 2/19/19
+-- Last Date Modified: 3/5/19
 -- Purpose: lexer program being tested for hw3
 
 -- Several functions in the program are taken from
