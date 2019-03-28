@@ -23,28 +23,32 @@ collatzCounts = [collatz x | x <- [1..]]
 
 
 findList :: Eq a => [a] -> [a] -> Maybe Int
--- -- findList _ _ = Just 42  -- DUMMY; REWRITE THIS!!!
 findList [] [] = Just 0 -- empty list, empty list = Just 0
 findList _ [] = Nothing -- anything, empty list = Nothing
-findList [] _ = Nothing  -- empty list, anything = Just 0
-
-findList (x:xs) (y:ys)
-   | isInfixOf (x:xs) (y:ys) = elemIndex x (y:ys)
-   | otherwise = findList xs (y:ys)
+findList [] _ = Just 0  -- empty list, anything = Just 0
+findList a b = findIndex (isPrefixOf a) (tails b)
 
 -- operator ##
 (##) :: Eq a => [a] -> [a] -> Int
--- _ ## _ = 42  -- DUMMY; REWRITE THIS!!!
+[] ## [] = 0
 _ ## [] = 0
-[] ## _ = 0
-(x:xs) ## (y:ys)
-   | x == y    = xs ## ys
-   | otherwise = (x:xs) ## ys
+a ## b = length (filter (uncurry (==)) (zip a b))
 
+-- (##) :: Eq a => [a] -> [a] -> Int
+-- [] ## _ = 0
+-- _ ## [] = 0
+-- (x:xs) ## (y:ys)
+--   | x == y                  = (xs ## ys) + 1
+--   | otherwise               = xs ## ys
 
 -- filterAB
 filterAB :: (a -> Bool) -> [a] -> [b] -> [b]
-filterAB _ _ bs = bs  -- DUMMY; REWRITE THIS!!!
+filterAB _ [] [] = []
+filterAB _ _ []  = []
+filterAB _ [] _  = []
+filterAB f (x:xs) (y:ys)
+   | f x       = y : filterAB f xs ys
+   | otherwise = filterAB f xs ys
 
 -- sumEvenOdd
 sumEvenOdd :: Num a => [a] -> (a, a)
