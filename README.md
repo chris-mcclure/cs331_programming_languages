@@ -11,6 +11,6 @@ This repository serves as a collection of the homework assigned in <i>CS331 Prog
 
   <li> HW4 is a parser that interprets the lexeme string returned by HW3. </li>
 
-  <li> HW5 </li> 
+  <li> HW5 is comprised of multiple functions using recursion and lists in Haskell. </li> 
 
 </ul>
