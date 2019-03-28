@@ -50,6 +50,7 @@ filterAB f (x:xs) (y:ys)
    | f x       = y : filterAB f xs ys
    | otherwise = filterAB f xs ys
 
+
 -- sumEvenOdd
 sumEvenOdd :: Num a => [a] -> (a, a)
    
@@ -63,5 +64,7 @@ sumEvenOdd :: Num a => [a] -> (a, a)
   Above, "..." should be replaced by other code. The "fold*" must be
   one of the following: foldl, foldr, foldl1, foldr1.
 -}
-sumEvenOdd _ = (0, 0)  -- DUMMY; REWRITE THIS!!!
+sumEvenOdd [] = (0, 0)
+sumEvenOdd (x:xs) = (foldl(+)x xs, 0)
+
 
