@@ -6,30 +6,49 @@
 -- Solutions to Assignment 5 Exercise B
 
 module PA5 where
+import Data.List
+import Data.Fixed
+import System.IO 
 
+-- collatz
+collatz :: Integer -> Integer
+collatz 1 = 0
+collatz n
+  | odd n     = collatz(3 * n + 1) + 1
+  | otherwise = collatz(div n 2) + 1
 
 -- collatzCounts
 collatzCounts :: [Integer]
-collatzCounts = [42..]  -- DUMMY; REWRITE THIS!!!
+collatzCounts = [collatz x | x <- [1..]]
 
 
--- findList
 findList :: Eq a => [a] -> [a] -> Maybe Int
-findList _ _ = Just 42  -- DUMMY; REWRITE THIS!!!
+-- -- findList _ _ = Just 42  -- DUMMY; REWRITE THIS!!!
+findList [] [] = Just 0 -- empty list, empty list = Just 0
+findList _ [] = Nothing -- anything, empty list = Nothing
+findList [] _ = Nothing  -- empty list, anything = Just 0
 
+findList (x:xs) (y:ys)
+   | isInfixOf (x:xs) (y:ys) = elemIndex x (y:ys)
+   | otherwise = findList xs (y:ys)
 
 -- operator ##
 (##) :: Eq a => [a] -> [a] -> Int
-_ ## _ = 42  -- DUMMY; REWRITE THIS!!!
+-- _ ## _ = 42  -- DUMMY; REWRITE THIS!!!
+_ ## [] = 0
+[] ## _ = 0
+(x:xs) ## (y:ys)
+   | x == y    = xs ## ys
+   | otherwise = (x:xs) ## ys
 
 
 -- filterAB
 filterAB :: (a -> Bool) -> [a] -> [b] -> [b]
 filterAB _ _ bs = bs  -- DUMMY; REWRITE THIS!!!
 
-
 -- sumEvenOdd
 sumEvenOdd :: Num a => [a] -> (a, a)
+   
 {-
   The assignment requires sumEvenOdd to be written using a fold.
   Something like this:
