@@ -1,23 +1,47 @@
-module Main where
+-- Chris McClure
+-- CS331 HW5 Excercise C
+-- Last Revised: 3/29/19
 
-import System.IO
-import Data.List
+-- For HW5 Part C
+-- Returns the median of a list.
 
-main = do
-   putStrLn "Enter a list of integers, one on each line."
-   putStrLn "I will compute the median of the list. \n\n"
-   putStrLn "Enter number (blank line to end): "
-   num <- getLine
- 
-   -- need to make a base statement that ends the program if a blank line is entered
+-- PROGRAM WILL THROW AN EXCEPTION IF ANYTHING 
+-- OTHER THAN A NUMBER IS INPUT.
 
-   let maybeInt = readMaybe num :: Maybe Int
+import System.IO    
+import Data.List 
+import Data.Char 
 
-   case maybeInt of
-      Just n -> putStrLn "good" 
-      Nothing -> putStrLn "BAD" >> main
+main = do 
+    nums <- getNumbers
+    if (null nums) then
+        putStrLn "Empty list- no median"
+    else do
+        putStr "Median: "
+        print (median nums)
+    putStrLn "\nCompute another median? [y/n]"
+    input <- getLine
+    if (map toLower input == "y") then
+        main
+    else do 
+        putStrLn "Exiting!"
 
-readMaybe :: Read a => String -> Maybe a
-readMaybe s = case reads s of 
-   [(val, "")] -> Just val
-   _           -> Nothing
+-- getNumbers
+-- recursively calls itself, adding inputted numbers 
+-- to a list, until an empty string is passed.
+getNumbers = do 
+    putStr "Enter a number (blank line to end): "
+    hFlush stdout
+    input <- getLine
+    if null input
+      then return []
+    else do
+      let num = read input
+      next <- getNumbers
+      return (num: next)
+     
+-- median
+-- sorts a list and returns the value in the middle
+median :: [Int] -> Int
+median [] = 0
+median nums = (sort nums) !! div (length nums) 2
