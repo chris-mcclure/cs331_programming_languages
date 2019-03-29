@@ -51,20 +51,15 @@ filterAB f (x:xs) (y:ys)
    | otherwise = filterAB f xs ys
 
 
+indexHop [] = [0]
+indexHop xs = foldr(\x acc -> if (odd (fst x)) 
+                                 then (snd x):acc 
+                              else acc) [] (zip [1..] xs)
 -- sumEvenOdd
 sumEvenOdd :: Num a => [a] -> (a, a)
-   
-{-
-  The assignment requires sumEvenOdd to be written using a fold.
-  Something like this:
-
-    sumEvenOdd xs = fold* ... xs where
-        ...
-
-  Above, "..." should be replaced by other code. The "fold*" must be
-  one of the following: foldl, foldr, foldl1, foldr1.
--}
-sumEvenOdd [] = (0, 0)
-sumEvenOdd (x:xs) = (foldl(+)x xs, 0)
+sumEvenOdd [] = (0,0)
+sumEvenOdd xs = (foldr1 (+) (a), foldr1 (+) (b))
+  where a = indexHop xs 
+        b = indexHop (tail xs)
 
 
