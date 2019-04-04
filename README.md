@@ -13,4 +13,6 @@ This repository serves as a collection of the homework assigned in <i>CS331 Prog
 
   <li> HW5 is comprised of multiple functions using recursion and lists in Haskell. </li> 
 
+  <li> HW6 is an interpreter that combines lexit.lua and parseit.lua from HW3 and HW4 that creates code specific to the <i>Jerboa</i> language.</li>
+
 </ul>
