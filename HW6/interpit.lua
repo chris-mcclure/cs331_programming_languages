@@ -1,4 +1,4 @@
--- interpit.lua  UNFINISHED
+-- interpit.lua  INCOMPLETE
 -- Glenn G. Chappell
 -- 3 Apr 2019
 --
@@ -61,7 +61,6 @@ end
 -- succeeds, return the integer. Otherwise, return 0.
 local function strToNum(s)
     assert(type(s) == "string")
-
     -- Try to do string -> number conversion; make protected call
     -- (pcall), so we can handle errors.
     local success, value = pcall(function() return 0+s end)
@@ -70,6 +69,7 @@ local function strToNum(s)
     if success then
         return numToInt(value)
     else
+        print("not successful")
         return 0
     end
 end
@@ -88,7 +88,6 @@ end
 -- Given a boolean, return 1 if it is true, 0 if it is false.
 local function boolToInt(b)
     assert(type(b) == "boolean")
-
     if b then
         return 1
     else
@@ -96,6 +95,18 @@ local function boolToInt(b)
     end
 end
 
+local function strToBool(s)
+    assert(type(s) == "string")
+    if s == "true" then
+        -- print("hello!!!!!!!")
+        local value = true
+        return boolToInt(value)
+    else
+        -- print("not hello")
+        local value = false
+        return boolToInt(value)
+    end
+end
 
 -- astToStr
 -- Given an AST, produce a string holding the AST in (roughly) Lua form,
@@ -174,12 +185,104 @@ function interpit.interp(ast, state, incall, outcall)
 
     -- Forward declare local functions
     local interp_stmt_list
+    local interp_stmt
+    local eval_expr
+    local process_lvalue
+    local get_lvalue
+    local set_lvalue
 
 
     function interp_stmt_list(ast)
-        -- TODO: WRITE THIS!!!
-        print("INTERPRETING!")  -- DUMMY
+        assert(ast[1] == STMT_LIST,
+               "stmt list AST must start w/ STMT_LIST")
+        for i = 2, #ast do
+            interp_stmt(ast[i])
+        end
     end
+
+
+    function interp_stmt(ast)
+        if (ast[1] == WRITE_STMT) then
+            for i = 2, #ast do
+                assert(type(ast[i]) == "table",
+                       "print arg must be table")
+                if ast[i][1] == CR_OUT then
+                    outcall("\n")
+                elseif ast[i][1] == STRLIT_OUT then
+                    local str = ast[i][2]
+                    outcall(str:sub(2,str:len()-1))
+                else
+                    local value = eval_expr(ast[i])
+                    print("value: " .. value)
+                    outcall(numToStr(value))
+                end
+            end
+        elseif (ast[1] == FUNC_DEF) then
+            local name = ast[2] 
+            local body = ast[3]
+            state.f[name] = body
+        elseif (ast[1] == FUNC_CALL) then
+            local name = ast[2]
+            local body = state.f[name]
+            if body == nil then
+                body = { STMT_LIST }  -- Default AST
+            end
+            interp_stmt_list(body)
+        elseif (ast[1] == IF_STMT) then
+            print("\n"..astToStr(ast))
+        elseif (ast[1] == WHILE_STMT) then
+            print("\n"..astToStr(ast))
+            local value = eval_expr(ast[2])
+            if value == 0 then
+                print("\nfigure out how to stop when value is 0")
+            end
+        elseif (ast[1] == RETURN_STMT) then
+            print("\n"..astToStr(ast))
+
+        elseif (ast[1] == ASSN_STMT) then
+            print("\nast: " ..astToStr(ast))
+            local name = eval_expr(ast[2]) -- left left subtree
+            local body = eval_expr(ast[3])
+            print(body)
+            state.v[name] = body
+        else
+            assert(false, "Illegal statement!!!!!")
+        end
+    end
+
+
+    function eval_expr(ast)
+        if ast[1] == NUMLIT_VAL then
+            local value = strToNum(ast[2])
+            return value
+        elseif ast[1] == READNUM_CALL then
+            local value = strToNum(incall())
+            return value
+        elseif ast[1] == SIMPLE_VAR then
+            return ast[2]
+        elseif ast[1] == BOOLLIT_VAL then
+            print(type(ast[2]))
+            local value = strToBool(ast[2])
+            return value
+        else
+            print("EXPRESSION involving not-written-yet case!!!")
+        end
+    end
+
+    -- function process_lvalue(ast)
+
+    -- end
+
+
+    -- function get_lvalue(desc)
+
+    -- end
+
+
+    -- function set_lvalue(desc, new)
+
+    -- end
+
 
     -- Body of function interp
     interp_stmt_list(ast)
@@ -188,7 +291,6 @@ end
 
 
 -- ***** Module Export *****
-
 
 return interpit
 
