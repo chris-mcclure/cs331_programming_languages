@@ -202,7 +202,9 @@ function interpit.interp(ast, state, incall, outcall)
 
 
     function interp_stmt(ast)
+	    -- print("ast: " ..astToStr(ast))
         if (ast[1] == WRITE_STMT) then
+        	-- print("\nIN WRITE_STMT")
             for i = 2, #ast do
                 assert(type(ast[i]) == "table",
                        "print arg must be table")
@@ -213,15 +215,23 @@ function interpit.interp(ast, state, incall, outcall)
                     outcall(str:sub(2,str:len()-1))
                 else
                     local value = eval_expr(ast[i])
-                    print("value: " .. value)
+                    -- print("value: " ..value)
+                    if type(value) == "string" then
+                        local body = state.v[value]
+                        if body == nil then
+                            value = 0
+                        else value = body end
+                    end
                     outcall(numToStr(value))
                 end
             end
         elseif (ast[1] == FUNC_DEF) then
+            -- print("\nIN FUNC_DEF")
             local name = ast[2] 
             local body = ast[3]
             state.f[name] = body
         elseif (ast[1] == FUNC_CALL) then
+            -- print("\nIN FUNC_CALL")
             local name = ast[2]
             local body = state.f[name]
             if body == nil then
@@ -229,23 +239,37 @@ function interpit.interp(ast, state, incall, outcall)
             end
             interp_stmt_list(body)
         elseif (ast[1] == IF_STMT) then
-            print("\n"..astToStr(ast))
+            -- print("\nIN IF_STMT")
         elseif (ast[1] == WHILE_STMT) then
-            print("\n"..astToStr(ast))
+            -- print("\nIN WHILE_STMT")
             local value = eval_expr(ast[2])
-            if value == 0 then
-                print("\nfigure out how to stop when value is 0")
-            end
         elseif (ast[1] == RETURN_STMT) then
-            print("\n"..astToStr(ast))
-
+            -- print("\nIN RETURN_STMT")
         elseif (ast[1] == ASSN_STMT) then
-            print("\nast: " ..astToStr(ast))
-            local name = eval_expr(ast[2]) -- left left subtree
-            local body = eval_expr(ast[3])
-            print(body)
-            state.v[name] = body
+	        -- print("\nIN ASSN_STMT")
+        	local name, body, index
+
+     		if ast[2][1] == ARRAY_VAR then
+     			name = eval_expr(ast[2])
+     			-- print("name: " .. name)
+     			index = eval_expr(ast[2][3])
+     			-- print("index: " .. index)
+     			body = eval_expr(ast[3])
+     			-- print("body: " .. body)
+
+     			state.a[name] = {[index] = body}
+		    	-- print("state.a[name][index]: " .. state.a[name][index])
+
+     			-- print("state.a["..name.."]["..index.."] = "..body)
+     		end
+     		if ast[2][1] == SIMPLE_VAR then
+		        name = eval_expr(ast[2]) -- left left subtree
+		        body = eval_expr(ast[3])
+		        state.v[name] = body
+		    	-- print("state.v[name]: " .. state.v[name])
+			end
         else
+            -- print("\nIN IF_ILLEGAL_STATMENT")
             assert(false, "Illegal statement!!!!!")
         end
     end
@@ -261,9 +285,85 @@ function interpit.interp(ast, state, incall, outcall)
         elseif ast[1] == SIMPLE_VAR then
             return ast[2]
         elseif ast[1] == BOOLLIT_VAL then
-            print(type(ast[2]))
             local value = strToBool(ast[2])
             return value
+        elseif ast[1] == ARRAY_VAR then
+            return ast[2]
+        elseif ast[1] == FUNC_CALL then
+        	-- print("in eval expr func call")
+        elseif ((type(ast[1]) == "table") and 
+        		(ast[1][1] == UN_OP or 
+        		 ast[1][1] == BIN_OP)) then
+        	-- print("in eval_expr: table")
+        	local value = eval_expr(ast[2])
+        	if ast[1][2] == "+" then
+        		value = numToInt(value)
+        	elseif ast[1][2] == "-" then
+        		value = -1 * value
+        		value = numToInt(value)
+        	elseif ast[1][2] == "!" then
+        		value = "!"..value
+        		if value == "!0" then
+        			value = 1
+        		elseif value == "!1" then
+        			value = 0
+        		end
+        	elseif ast[1][2] == "==" then
+        		local lhs = ast[2][2]
+        		local rhs = ast[3][2]
+        		if lhs == rhs then
+        			value = 1
+        		else value = 0
+        		end
+        	elseif ast[1][2] == "!=" then
+        		local lhs = ast[2][2]
+        		local rhs = ast[3][2]
+        		if lhs ~= rhs then
+        			value = 1
+        		else value = 0
+        		end
+        	elseif ast[1][2] == "<" then
+        		local lhs = ast[2][2]
+        		local rhs = ast[3][2]
+        		if lhs < rhs then
+        			value = 1
+        		else value = 0
+        		end
+        	elseif ast[1][2] == ">" then
+        		local lhs = ast[2][2]
+        		local rhs = ast[3][2]
+        		if lhs > rhs then
+        			value = 1
+        		else value = 0
+        		end
+        	elseif ast[1][2] == "<=" then
+        		local lhs = ast[2][2]
+        		local rhs = ast[3][2]
+        		if lhs <= rhs then
+        			value = 1
+        		else value = 0
+        		end
+            elseif ast[1][2] == ">=" then
+				local lhs = ast[2][2]
+        		local rhs = ast[3][2]
+        		if lhs >= rhs then
+        			value = 1
+        		else value = 0
+        		end
+        	elseif ast[1][2] == "&&" then
+				if ast[2][2] == "0" or ast[3][2] == "0" then
+					value = 0
+				else value = 1
+				end
+			elseif ast[1][2] == "||" then
+				if ast[2][2] == "0" and ast[3][2] == "0" then
+					value = 0
+				else value = 1
+				end
+        	end	
+
+        	-- print(value)
+        	return value
         else
             print("EXPRESSION involving not-written-yet case!!!")
         end
