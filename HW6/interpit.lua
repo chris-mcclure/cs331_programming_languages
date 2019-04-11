@@ -1,10 +1,14 @@
--- interpit.lua  INCOMPLETE
--- Glenn G. Chappell
--- 3 Apr 2019
---
--- For CS F331 / CSCE A331 Spring 2019
--- Interpret AST from parseit.parse
--- For Assignment 6, Exercise B
+-- interpit.lua  
+-- Chris McClure
+-- CS331 HW6 Part B
+-- Last Revised: 4/11/19
+
+-- Interpit program used in conjunction 
+-- with Lexit.lua and Parseit.lua for part B 
+-- of HW 6. 
+
+-- Utility functions are taken from Dr. Chappell's 
+-- interpit.lua skeleton file. 
 
 
 -- *******************************************************************
@@ -38,10 +42,7 @@ local READNUM_CALL = 15
 local SIMPLE_VAR   = 16
 local ARRAY_VAR    = 17
 
-
-
 -- ***** Utility Functions *****
-
 
 -- numToInt
 -- Given a number, return the number rounded toward zero.
@@ -194,15 +195,16 @@ function interpit.interp(ast, state, incall, outcall)
 
     function interp_stmt_list(ast)
         assert(ast[1] == STMT_LIST,
-               "stmt list AST must start w/ STMT_LIST")
+               "stmt list AST must start w/ STMT_LIST")        
         for i = 2, #ast do
             interp_stmt(ast[i])
         end
     end
 
-
+-- interp_stmt takes an abstract syntax tree and returns changes
+-- the states associated with the variables. (state.f, state.a, and state.v)
     function interp_stmt(ast)
-	    -- print("ast: " ..astToStr(ast))
+	    print("ast: " ..astToStr(ast))
         if (ast[1] == WRITE_STMT) then
         	-- print("\nIN WRITE_STMT")
             for i = 2, #ast do
@@ -226,12 +228,10 @@ function interpit.interp(ast, state, incall, outcall)
                 end
             end
         elseif (ast[1] == FUNC_DEF) then
-            -- print("\nIN FUNC_DEF")
             local name = ast[2] 
             local body = ast[3]
             state.f[name] = body
         elseif (ast[1] == FUNC_CALL) then
-            -- print("\nIN FUNC_CALL")
             local name = ast[2]
             local body = state.f[name]
             if body == nil then
@@ -239,43 +239,52 @@ function interpit.interp(ast, state, incall, outcall)
             end
             interp_stmt_list(body)
         elseif (ast[1] == IF_STMT) then
-            -- print("\nIN IF_STMT")
-            local lhs = eval_expr(ast[2])
-            if lhs == 0 then
-                return --local rhs = interp_stmt_list(ast[3])
+            local done = false
+            local elseIndex = 0
+            for i=2, #ast-1, 2 do
+                if eval_expr(ast[i]) ~=0 and not done then
+                    interp_stmt_list(ast[i+1])
+                    done = true
+                end
+                elseIndex = i
             end
-            local rhs = interp_stmt_list(ast[3])
+            if ast[elseIndex+2] ~= nil and not done then
+                interp_stmt_list(ast[elseIndex+2])
+            end
         elseif (ast[1] == WHILE_STMT) then
-            -- print("\nIN WHILE_STMT")
-            local value = eval_expr(ast[2])
-            if value == 0 then 
-                return 
+            while eval_expr(ast[2]) ~= 0 do
+                interp_stmt_list(ast[3])
             end
-            local rhs = interp_stmt_list(ast[3])
         elseif (ast[1] == RETURN_STMT) then
-            -- print("\nIN RETURN_STMT")
+            -- local value = eval_expr(ast)
         elseif (ast[1] == ASSN_STMT) then
-	        -- print("\nIN ASSN_STMT")
         	local name, body, index
      		if ast[2][1] == ARRAY_VAR then
      			name = eval_expr(ast[2])
+                print('name: '..name)
      			index = eval_expr(ast[2][3])
+                print('index: '..index)
      			body = eval_expr(ast[3])
+                print('body: ' .. body)
      			state.a[name] = {[index] = body}
+                print(state.a[name][index])
      		end
      		if ast[2][1] == SIMPLE_VAR then
 		        name = eval_expr(ast[2]) -- left left subtree
 		        body = eval_expr(ast[3])
 		        state.v[name] = body
+                print('name: ' .. name)
+                print('body: ' .. body)
+                print(state.v[name])
 			end
         else
-            -- print("\nIN IF_ILLEGAL_STATMENT")
             assert(false, "Illegal statement!!!!!")
         end
     end
 
 
     function eval_expr(ast)
+        local lhs, rhs = 0
         if ast[1] == NUMLIT_VAL then
             local value = strToNum(ast[2])
             return value
@@ -288,37 +297,39 @@ function interpit.interp(ast, state, incall, outcall)
             local value = strToBool(ast[2])
             return value
         elseif ast[1] == ARRAY_VAR then
+            print('in array_var')
             return ast[2]
+        elseif ast[1] == STMT_LIST then
+            local lhs = eval_expr(ast[2])
+            print(lhs)
         elseif ast[1] == FUNC_CALL then
         	-- print("in eval expr func call")
         elseif ((type(ast[1]) == "table") and 
         		(ast[1][1] == UN_OP or 
         		 ast[1][1] == BIN_OP)) then
-            local lhs, rhs = 0
-        	-- print("in eval_expr: table")
         	local value = eval_expr(ast[2])
         	if ast[1][2] == "+" then
-                lhs = ast[2][2]
+                lhs = eval_expr(ast[2])
                 rhs = 0
                 if(ast[1][1] == BIN_OP) then
-                    rhs = ast[3][2]
+                    rhs = eval_expr(ast[3])
                 end
         		value = numToInt(lhs+rhs)
         	elseif ast[1][2] == "-" then
                 if ast[1][1] == BIN_OP then
-                    lhs = ast[2][2]
-                    rhs = ast[3][2]
+                    lhs = eval_expr(ast[2])
+                    rhs = eval_expr(ast[3])
                     value = numToInt(lhs-rhs)
                 else
             		value = -1 * value
             		value = numToInt(value)
                 end
             elseif ast[1][2] == "*" then
-                lhs = ast[2][2]
-                rhs = ast[3][2]
+                lhs = eval_expr(ast[2])
+                rhs = eval_expr(ast[3])
                 value = numToInt(lhs*rhs)
             elseif ast[1][2] == "/" then
-                lhs = ast[2][2]
+                lhs = eval_expr(ast[2])
                 rhs = ast[3][2]
                 if rhs == "0" then
                     value = 0
@@ -326,7 +337,7 @@ function interpit.interp(ast, state, incall, outcall)
                     value = numToInt(lhs/rhs)
                 end
             elseif ast[1][2] == "%" then
-                lhs = ast[2][2]
+                lhs = eval_expr(ast[2])
                 rhs = ast[3][2]
                 if rhs == "0" then
                     value = 0
@@ -341,43 +352,43 @@ function interpit.interp(ast, state, incall, outcall)
         			value = 0
         		end
         	elseif ast[1][2] == "==" then
-        		lhs = ast[2][2]
-        		rhs = ast[3][2]
+        		lhs = eval_expr(ast[2])
+                rhs = eval_expr(ast[3])
         		if lhs == rhs then
         			value = 1
         		else value = 0
         		end
         	elseif ast[1][2] == "!=" then
-        		lhs = ast[2][2]
-        		rhs = ast[3][2]
+        		lhs = eval_expr(ast[2])
+                rhs = eval_expr(ast[3])
         		if lhs ~= rhs then
         			value = 1
         		else value = 0
         		end
         	elseif ast[1][2] == "<" then
-        		lhs = ast[2][2]
-        		rhs = ast[3][2]
+        		lhs = eval_expr(ast[2])
+                rhs = eval_expr(ast[3])
         		if lhs < rhs then
         			value = 1
         		else value = 0
         		end
         	elseif ast[1][2] == ">" then
-        		lhs = ast[2][2]
-        		rhs = ast[3][2]
+        		lhs = eval_expr(ast[2])
+                rhs = eval_expr(ast[3])
         		if lhs > rhs then
         			value = 1
         		else value = 0
         		end
         	elseif ast[1][2] == "<=" then
-        		lhs = ast[2][2]
-        		rhs = ast[3][2]
+        		lhs = eval_expr(ast[2])
+                rhs = eval_expr(ast[3])
         		if lhs <= rhs then
         			value = 1
         		else value = 0
         		end
             elseif ast[1][2] == ">=" then
-				lhs = ast[2][2]
-        		rhs = ast[3][2]
+				lhs = eval_expr(ast[2])
+                rhs = eval_expr(ast[3])
         		if lhs >= rhs then
         			value = 1
         		else value = 0
@@ -398,21 +409,6 @@ function interpit.interp(ast, state, incall, outcall)
             print("EXPRESSION involving not-written-yet case!!!")
         end
     end
-
-    -- function process_lvalue(ast)
-
-    -- end
-
-
-    -- function get_lvalue(desc)
-
-    -- end
-
-
-    -- function set_lvalue(desc, new)
-
-    -- end
-
 
     -- Body of function interp
     interp_stmt_list(ast)
