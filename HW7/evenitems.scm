@@ -1,28 +1,15 @@
 #lang scheme
-; Chris McClure
-; evenitems.scm
-; 27 Apr 2019
 
-; Seperates a list by evens and odds
-; into two seperate lists.
-
-; add element to the list
-(define (addtolist l1 l2)
-  (list l1 l2)
+(define (thing lst)
+  (assist lst 0)
   )
 
-
-;if even add item to new list and call evenitems with rest
-;if odd add item to another new list and call evenitems with rest
-; once there is no more elements in the list, return both lists
-(define (evenitems lst)
+(define (assist lst num)
   (cond
-    [(empty? lst) lst]
-    [(even? (first lst))
-     (addtolist (first lst) (evenitems (rest lst)))
+    [(empty? lst) 0]
+    [(even? num)
+     (list (first lst) (assist (rest lst) (+ 1 num)))
      ]
-    [else
-     (addtolist (evenitems (rest lst)) (first lst))
-     ]
+    [else (assist (rest lst) (+ 1 num))]
     )
   )
