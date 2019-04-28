@@ -1,6 +1,7 @@
 \ Chris McClure 
 \ collcount.fs
 \ 27 Apr 2019
+\ CS331 HW7 Part B
 
 \ Calculates the amount of times
 \ collcount needs to be called in 

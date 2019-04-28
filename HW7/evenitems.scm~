@@ -2,7 +2,6 @@
 ; Chris McClure
 ; evenitems.scm
 ; 27 Apr 2019
-; CS331 HW7 Part C
 
 ; Returns a list of values that
 ; occupied even indices in a list that was passed.
